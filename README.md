@@ -1,4 +1,4 @@
-# auto-revo-web
+# Auto-Revolution-Web
 
 `Codex` 驱动的自进化网页框架
 
