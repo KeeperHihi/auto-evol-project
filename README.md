@@ -58,7 +58,7 @@ cp config.example.json config.json
 
 # 然后在 config.json 中修改参数:
 
-# gitBranch: 你希望新项目的分支名
+# gitBranch: 你希望新项目的分支名！！！！！！！！！！！！！！！！！这里默认是 demo
 
 # 如果你希望进化的网页可以调用大模型服务，需要把 config.json 中的 llmAccess 字段填好，
 # 随意提供一个可以调用的大模型服务即可。放心 api-key 绝对不会暴露。
