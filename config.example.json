@@ -33,7 +33,7 @@
     "autoGitCommit": false,
     "autoGitPush": false,
     "gitRemote": "origin",
-    "gitBranch": "main",
+    "gitBranch": "evolution/auto-revo",
     "gitCommitPrefix": "Codex Evolution:"
   }
 }

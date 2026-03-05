@@ -30,6 +30,15 @@ const CONFIG_FILE = path.join(APP_ROOT, 'config.json');
 
 let activeRunId = null;
 
+function normalizeGitBranchName(branchName) {
+    const raw = String(branchName || '').trim();
+    return raw.replace(/^refs\/heads\//, '');
+}
+
+function isMainBranchName(branchName) {
+    return normalizeGitBranchName(branchName).toLowerCase() === 'main';
+}
+
 function stripJsonComments(input) {
     const source = String(input || '');
     let output = '';
@@ -130,7 +139,7 @@ function getDefaultConfig() {
             autoGitCommit: false,
             autoGitPush: false,
             gitRemote: 'origin',
-            gitBranch: 'main',
+            gitBranch: 'evolution/auto-revo',
             gitCommitPrefix: 'Codex Evolution:'
         }
     };
@@ -201,7 +210,8 @@ function normalizeConfig(rawConfig) {
     normalized.codex.autoGitCommit = Boolean(normalized.codex.autoGitCommit);
     normalized.codex.autoGitPush = Boolean(normalized.codex.autoGitPush);
     normalized.codex.gitRemote = String(normalized.codex.gitRemote || defaults.codex.gitRemote).trim() || defaults.codex.gitRemote;
-    normalized.codex.gitBranch = String(normalized.codex.gitBranch || defaults.codex.gitBranch).trim() || defaults.codex.gitBranch;
+    normalized.codex.gitBranch = normalizeGitBranchName(normalized.codex.gitBranch || defaults.codex.gitBranch)
+        || normalizeGitBranchName(defaults.codex.gitBranch);
     normalized.codex.gitCommitPrefix = String(normalized.codex.gitCommitPrefix || defaults.codex.gitCommitPrefix).trim() || defaults.codex.gitCommitPrefix;
 
     return normalized;
@@ -557,13 +567,107 @@ function classifyCodexStreamLine(line, source, state) {
     return source === 'stderr' ? `[CODEX-STDERR] ${content}` : `[CODEX-STDOUT] ${content}`;
 }
 
-async function getChangedFilesFromGit(workspaceDir) {
-    const status = await runChildProcess('git', ['status', '--porcelain'], {
+async function runGitCommand(workspaceDir, args, timeoutMs = 30000) {
+    return runChildProcess('git', args, {
         cwd: workspaceDir,
         env: process.env,
         stdinData: '',
-        timeoutMs: 30000
+        timeoutMs
     });
+}
+
+async function ensureGitRepositoryAvailable(workspaceDir) {
+    const check = await runGitCommand(workspaceDir, ['rev-parse', '--is-inside-work-tree']);
+    if (check.code !== 0 || String(check.stdout || '').trim() !== 'true') {
+        throw new Error('当前目录不是有效的 git 仓库，无法执行自动提交/推送');
+    }
+}
+
+async function getCurrentGitBranchName(workspaceDir) {
+    const result = await runGitCommand(workspaceDir, ['rev-parse', '--abbrev-ref', 'HEAD']);
+    if (result.code !== 0) {
+        throw new Error(`读取当前分支失败: ${extractTail(result.stderr || result.stdout, 500)}`);
+    }
+    return normalizeGitBranchName(result.stdout || '');
+}
+
+async function gitRefExists(workspaceDir, refName) {
+    const result = await runGitCommand(workspaceDir, ['show-ref', '--verify', '--quiet', refName]);
+    if (result.code === 0) {
+        return true;
+    }
+    if (result.code === 1) {
+        return false;
+    }
+    throw new Error(`检查 git 引用失败(${refName}): ${extractTail(result.stderr || result.stdout, 500)}`);
+}
+
+async function ensureEvolutionBranchReady(config, workspaceDir, sendUpdate) {
+    const codex = config.codex || {};
+    const shouldProtectBranch = Boolean(codex.autoGitCommit || codex.autoGitPush);
+    if (!shouldProtectBranch) {
+        return;
+    }
+
+    if (codex.autoGitPush && !codex.autoGitCommit) {
+        throw new Error('codex.autoGitPush=true 时必须同时启用 codex.autoGitCommit');
+    }
+
+    const targetBranch = normalizeGitBranchName(codex.gitBranch || '');
+    if (!targetBranch) {
+        throw new Error('codex.gitBranch 不能为空（建议使用 evolution/auto-revo 这类进化分支）');
+    }
+    if (isMainBranchName(targetBranch)) {
+        throw new Error('为避免污染 main 分支，codex.gitBranch 不能是 main，请配置独立分支后再执行');
+    }
+
+    await ensureGitRepositoryAvailable(workspaceDir);
+
+    const currentBranch = await getCurrentGitBranchName(workspaceDir);
+    if (isMainBranchName(currentBranch)) {
+        sendUpdate(`[GIT] 当前分支是 ${currentBranch}，将切换到进化分支 ${targetBranch}`);
+    }
+
+    if (currentBranch === targetBranch) {
+        sendUpdate(`[GIT] 已位于进化分支: ${targetBranch}`);
+        return;
+    }
+
+    const localBranchRef = `refs/heads/${targetBranch}`;
+    const localBranchExists = await gitRefExists(workspaceDir, localBranchRef);
+    if (localBranchExists) {
+        const checkoutResult = await runGitCommand(workspaceDir, ['checkout', targetBranch], 60000);
+        if (checkoutResult.code !== 0) {
+            throw new Error(`切换到分支 ${targetBranch} 失败: ${extractTail(checkoutResult.stderr || checkoutResult.stdout, 600)}`);
+        }
+        sendUpdate(`[GIT] 已切换到进化分支: ${targetBranch}`);
+        return;
+    }
+
+    const remoteName = String(codex.gitRemote || 'origin').trim() || 'origin';
+    const remoteBranchRef = `refs/remotes/${remoteName}/${targetBranch}`;
+    const remoteBranchExists = await gitRefExists(workspaceDir, remoteBranchRef);
+
+    if (remoteBranchExists) {
+        sendUpdate(`[GIT] 本地不存在分支 ${targetBranch}，检测到远端分支，正在创建并建立跟踪关系`);
+        const createTrackResult = await runGitCommand(workspaceDir, ['checkout', '-b', targetBranch, '--track', `${remoteName}/${targetBranch}`], 60000);
+        if (createTrackResult.code !== 0) {
+            throw new Error(`创建并跟踪分支 ${targetBranch} 失败: ${extractTail(createTrackResult.stderr || createTrackResult.stdout, 600)}`);
+        }
+        sendUpdate(`[GIT] 已创建并切换到进化分支: ${targetBranch}（跟踪 ${remoteName}/${targetBranch}）`);
+        return;
+    }
+
+    sendUpdate(`[GIT] 分支 ${targetBranch} 不存在，正在基于当前提交自动创建`);
+    const createResult = await runGitCommand(workspaceDir, ['checkout', '-b', targetBranch], 60000);
+    if (createResult.code !== 0) {
+        throw new Error(`创建分支 ${targetBranch} 失败: ${extractTail(createResult.stderr || createResult.stdout, 600)}`);
+    }
+    sendUpdate(`[GIT] 已创建并切换到进化分支: ${targetBranch}`);
+}
+
+async function getChangedFilesFromGit(workspaceDir) {
+    const status = await runGitCommand(workspaceDir, ['status', '--porcelain']);
     if (status.code !== 0) {
         throw new Error(`读取 git 状态失败: ${extractTail(status.stderr || status.stdout, 600)}`);
     }
@@ -593,22 +697,29 @@ async function commitAndPushChanges(config, workspaceDir, taskPrompt, changedFil
         return { committed: false, pushed: false, stagedFiles: [] };
     }
 
-    const addResult = await runChildProcess('git', ['add', '-A'], {
-        cwd: workspaceDir,
-        env: process.env,
-        stdinData: '',
-        timeoutMs: 60000
-    });
+    const targetBranch = normalizeGitBranchName(codex.gitBranch || '');
+    if (!targetBranch) {
+        throw new Error('codex.gitBranch 不能为空，自动提交已中止');
+    }
+    if (isMainBranchName(targetBranch)) {
+        throw new Error('检测到 codex.gitBranch=main，已阻止自动提交以避免污染主分支');
+    }
+
+    await ensureGitRepositoryAvailable(workspaceDir);
+    const currentBranch = await getCurrentGitBranchName(workspaceDir);
+    if (isMainBranchName(currentBranch)) {
+        throw new Error('检测到当前分支为 main，已阻止自动提交以避免污染主分支');
+    }
+    if (currentBranch !== targetBranch) {
+        throw new Error(`当前分支(${currentBranch})与 codex.gitBranch(${targetBranch})不一致，已阻止自动提交`);
+    }
+
+    const addResult = await runGitCommand(workspaceDir, ['add', '-A'], 60000);
     if (addResult.code !== 0) {
         throw new Error(`git add 失败: ${extractTail(addResult.stderr || addResult.stdout, 500)}`);
     }
 
-    const stagedResult = await runChildProcess('git', ['diff', '--cached', '--name-only'], {
-        cwd: workspaceDir,
-        env: process.env,
-        stdinData: '',
-        timeoutMs: 30000
-    });
+    const stagedResult = await runGitCommand(workspaceDir, ['diff', '--cached', '--name-only']);
     if (stagedResult.code !== 0) {
         throw new Error(`读取暂存区失败: ${extractTail(stagedResult.stderr || stagedResult.stdout, 500)}`);
     }
@@ -621,14 +732,9 @@ async function commitAndPushChanges(config, workspaceDir, taskPrompt, changedFil
 
     const summary = String(taskPrompt || '').replace(/\s+/g, ' ').trim().slice(0, 80);
     const commitMessage = `${codex.gitCommitPrefix || 'Codex Evolution:'} ${summary || 'autonomous evolution'}`.trim();
-    sendUpdate(`[GIT] 提交变更: ${commitMessage}`);
+    sendUpdate(`[GIT] 提交变更到分支 ${targetBranch}: ${commitMessage}`);
 
-    const commitResult = await runChildProcess('git', ['commit', '-m', commitMessage], {
-        cwd: workspaceDir,
-        env: process.env,
-        stdinData: '',
-        timeoutMs: 60000
-    });
+    const commitResult = await runGitCommand(workspaceDir, ['commit', '-m', commitMessage], 60000);
     if (commitResult.code !== 0) {
         throw new Error(`git commit 失败: ${extractTail(commitResult.stderr || commitResult.stdout, 500)}`);
     }
@@ -638,17 +744,22 @@ async function commitAndPushChanges(config, workspaceDir, taskPrompt, changedFil
         return { committed: true, pushed: false, stagedFiles };
     }
 
-    const pushResult = await runChildProcess('git', ['push', codex.gitRemote || 'origin', codex.gitBranch || 'main'], {
-        cwd: workspaceDir,
-        env: process.env,
-        stdinData: '',
-        timeoutMs: 120000
-    });
+    if (isMainBranchName(targetBranch)) {
+        throw new Error('为避免污染 main 分支，禁止自动推送到 main');
+    }
+
+    const remoteName = String(codex.gitRemote || 'origin').trim() || 'origin';
+    const remoteCheckResult = await runGitCommand(workspaceDir, ['remote', 'get-url', remoteName]);
+    if (remoteCheckResult.code !== 0) {
+        throw new Error(`git remote(${remoteName}) 不存在或不可用: ${extractTail(remoteCheckResult.stderr || remoteCheckResult.stdout, 500)}`);
+    }
+
+    const pushResult = await runGitCommand(workspaceDir, ['push', '-u', remoteName, targetBranch], 120000);
     if (pushResult.code !== 0) {
         throw new Error(`git push 失败: ${extractTail(pushResult.stderr || pushResult.stdout, 500)}`);
     }
 
-    sendUpdate(`[GIT] 已推送到 ${codex.gitRemote || 'origin'}/${codex.gitBranch || 'main'}`);
+    sendUpdate(`[GIT] 已推送到 ${remoteName}/${targetBranch}`);
     return { committed: true, pushed: true, stagedFiles };
 }
 
@@ -767,6 +878,10 @@ async function executeEvolutionJob(input) {
 
     const config = await loadConfig();
     const workspaceDir = APP_ROOT;
+    await ensureEvolutionBranchReady(config, workspaceDir, (message) => {
+        sendUpdate(message, { loading: true, status: 'git_prepare' });
+    });
+
     const { text: systemPromptTemplate, path: systemPromptPath } = await loadSystemPrompt(config);
     const systemPrompt = renderSystemPrompt(systemPromptTemplate, config);
     const llmHintEnabled = Boolean(buildLlmRuntimeHint(config));

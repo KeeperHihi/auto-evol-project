@@ -49,6 +49,7 @@ Copy-Item config.example.json config.json
 - `evolution.defaultIterations` / `maxIterations`：默认与最大迭代轮次
 - `codex.*`：Codex CLI 行为与环境注入
 - `llmAccess.*`：可选外部模型调用信息（仅三项都配置才注入提示词）
+- 若启用 `codex.autoGitCommit/autoGitPush`，`codex.gitBranch` 必须是非 `main` 分支（例如 `evolution/auto-revo`）
 
 4. 运行
 
@@ -86,6 +87,31 @@ npm run dev:watch
 - `npm run check`：检查 `server.js` 语法
 - `npm run start`：生产模式启动
 
+## Git 进化分支机制
+
+为防止进化流程污染主分支，项目采用以下规则：
+
+1. 只要启用了 `codex.autoGitCommit` 或 `codex.autoGitPush`，系统都会先校验 `codex.gitBranch`。
+2. `codex.gitBranch` 不能是 `main`；否则任务会直接失败并给出提示。
+3. 任务启动前会自动切换到 `codex.gitBranch`。
+4. 如果该分支本地不存在，会自动创建并切换。
+5. 如果本地不存在但检测到远端跟踪分支，会自动创建本地分支并建立跟踪关系。
+6. 自动提交前会再次校验当前分支，若仍在 `main` 或与 `codex.gitBranch` 不一致，会拒绝提交。
+7. 自动推送使用 `git push -u <gitRemote> <gitBranch>`，首次推送可自动创建远端分支。
+
+建议配置：
+
+```json
+{
+  "codex": {
+    "autoGitCommit": true,
+    "autoGitPush": true,
+    "gitRemote": "origin",
+    "gitBranch": "evolution/auto-revo"
+  }
+}
+```
+
 ## 常见报错与排查
 
 ### 1) `spawn codex ENOENT`
@@ -107,6 +133,15 @@ npm run dev:watch
 1. 检查网络代理配置是否可访问模型服务。
 2. 确认 Codex 可写其状态目录（如 `$HOME/.codex`）。
 3. 在受限容器中运行时，先验证最小命令是否可执行。
+
+### 3) 提示 `codex.gitBranch 不能是 main`
+
+原因：自动提交/推送保护机制，防止污染主分支。
+
+处理：
+
+1. 在 `config.json` 把 `codex.gitBranch` 改成独立分支（如 `demo`）。
+2. 重新执行进化任务。
 
 ## 安全说明
 
@@ -146,8 +181,8 @@ npm run dev:watch
 | `codex.environment` | object | 额外环境变量 |
 | `codex.extraArgs` | string[] | 追加给 Codex 的参数 |
 | `codex.additionalWritableDirs` | string[] | 额外可写目录（仅允许项目内路径） |
-| `codex.autoGitCommit` | boolean | 每轮完成后自动提交 |
-| `codex.autoGitPush` | boolean | 自动提交后是否推送 |
+| `codex.autoGitCommit` | boolean | 每轮完成后自动提交（仅允许在非 `main` 分支执行） |
+| `codex.autoGitPush` | boolean | 自动提交后是否推送（要求 `autoGitCommit=true`） |
 | `codex.gitRemote` | string | 推送远端名 |
-| `codex.gitBranch` | string | 推送分支名 |
+| `codex.gitBranch` | string | 进化分支名（禁止 `main`，不存在时会自动创建并切换） |
 | `codex.gitCommitPrefix` | string | 自动提交消息前缀 |
