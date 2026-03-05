@@ -613,7 +613,11 @@ function classifyCodexStreamLine(line, source, state) {
         return `[CODEX-PHASE] ${content}`;
     }
 
-    if (/^OpenAI Codex v/i.test(content) || /^(workdir|model|approval|sandbox|session id):/i.test(content)) {
+    if (
+        /^OpenAI Codex v/i.test(content)
+        || /^-+$/i.test(content)
+        || /^(workdir|model|provider|approval|sandbox|session id|reasoning effort|reasoning summaries):/i.test(content)
+    ) {
         return `[CODEX-META] ${content}`;
     }
 
