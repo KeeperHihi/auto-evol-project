@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>auto-revo-web</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="app">
+        <h1 class="headline" aria-label="Hello World">Hello World</h1>
+
+        <form id="evolveForm" class="panel">
+            <label class="field">
+                网站方向 Prompt
+                <textarea id="promptInput" rows="4" placeholder="例如：做一个面向独立开发者的极简 AI 运营面板，强调自动化与可解释性。" required></textarea>
+            </label>
+
+            <label class="field small">
+                迭代轮次
+                <input id="iterationsInput" type="number" min="1" max="10" value="3">
+            </label>
+
+            <button id="submitBtn" type="submit">开始自进化</button>
+        </form>
+
+        <section class="panel">
+            <h2>实时日志</h2>
+            <pre id="logOutput" class="log">等待任务启动...</pre>
+        </section>
+    </main>
+
+    <script src="/app.js"></script>
+</body>
+</html>

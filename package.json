@@ -1,0 +1,23 @@
+{
+  "name": "auto-revo-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI 自进化网站",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "node server.js",
+    "dev:watch": "nodemon --watch . --ext js,json,md,css,html server.js",
+    "cli-evolve": "node server.js --cli-evolve",
+    "check": "node --check server.js",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

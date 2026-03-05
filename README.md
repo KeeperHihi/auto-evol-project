@@ -1,0 +1,153 @@
+# auto-revo-web
+
+AI 自进化网站框架：接收用户 Prompt，拼接系统提示词，调用 Codex 持续迭代当前仓库，并通过 Web/CLI 展示实时日志。
+
+## 核心能力
+
+1. Web 模式：前端输入网站方向 Prompt，后端执行多轮迭代。
+2. CLI 模式：终端直接触发迭代并实时打印日志。
+3. 配置驱动：通过 `config.json` 控制轮次、超时、Codex 参数、可选 Git 自动提交等。
+4. SSE 日志流：Web 端可以实时看到每轮执行过程。
+
+## 目录结构
+
+- `server.js`：后端核心（配置读取、Prompt 组装、Codex 执行、轮次调度、SSE）
+- `public/`：最小前端页面
+- `prompts/sys-prompt.md`：系统提示词模板
+- `config.example.json`：配置示例
+- `config.json`：本地实际配置（已在 `.gitignore` 中忽略）
+
+## 环境要求
+
+- Node.js 18+（推荐 22 LTS）
+- npm 9+
+- 可选：`codex` CLI（需要实际执行 AI 进化时）
+
+## 快速开始（首次运行必看）
+
+1. 安装依赖
+
+```bash
+npm install
+```
+
+2. 准备配置
+
+```bash
+cp config.example.json config.json
+```
+
+如果你在 Windows PowerShell，可用：
+
+```powershell
+Copy-Item config.example.json config.json
+```
+
+3. 按需修改 `config.json`
+
+- `server.port`：服务端口
+- `evolution.defaultIterations` / `maxIterations`：默认与最大迭代轮次
+- `codex.*`：Codex CLI 行为与环境注入
+- `llmAccess.*`：可选外部模型调用信息（仅三项都配置才注入提示词）
+
+4. 运行
+
+Web 模式：
+
+```bash
+npm run dev
+```
+
+浏览器打开：`http://localhost:6161`
+
+CLI 模式（交互输入 Prompt）：
+
+```bash
+npm run cli-evolve
+```
+
+CLI 模式（脚本传参）：
+
+```bash
+npm run cli-evolve -- --prompt="做一个极简 AI 作品集网站" --iterations=3
+```
+
+开发热重启：
+
+```bash
+npm run dev:watch
+```
+
+## 常用脚本
+
+- `npm run dev`：启动 Web 服务
+- `npm run dev:watch`：使用 nodemon 热重启
+- `npm run cli-evolve`：CLI 触发进化
+- `npm run check`：检查 `server.js` 语法
+- `npm run start`：生产模式启动
+
+## 常见报错与排查
+
+### 1) `spawn codex ENOENT`
+
+原因：系统中找不到 `codex` 命令。
+
+处理：
+
+1. 先确认本机可直接执行 `codex --version`。
+2. 如命令名不同，在 `config.json` 中改 `codex.command`。
+3. 确认当前终端环境变量能找到该命令。
+
+### 2) Codex 执行中网络/权限失败
+
+常见于受限沙箱或网络代理环境，表现为连接失败、只读目录报错等。
+
+处理建议：
+
+1. 检查网络代理配置是否可访问模型服务。
+2. 确认 Codex 可写其状态目录（如 `$HOME/.codex`）。
+3. 在受限容器中运行时，先验证最小命令是否可执行。
+
+## 安全说明
+
+1. `config.json` 通常包含密钥，不要提交到仓库。
+2. 当前实现不会把 `llmAccess.apiKey` 明文注入到系统提示词；会通过环境变量 `LLM_ACCESS_API_KEY` 提供给 Codex 子进程。
+
+## 运行流程
+
+1. 读取 `config.json` 与 `prompts/sys-prompt.md`
+2. 组装本轮 Prompt（系统提示词 + 用户方向 + 轮次上下文）
+3. 调用 `codex exec`
+4. 推送日志到 CLI 或 SSE
+5. 根据设定轮次重复执行
+
+## 配置字段说明（`config.json`）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `server.port` | number | Web 服务端口 |
+| `evolution.defaultIterations` | number | 默认迭代轮次 |
+| `evolution.maxIterations` | number | 单次任务最大轮次 |
+| `evolution.intervalMs` | number | 轮次间隔（ms） |
+| `evolution.appendIterationContext` | boolean | 是否附加轮次上下文 |
+| `evolution.systemPromptFile` | string | 系统提示词文件（相对项目根目录） |
+| `llmAccess.url` | string | 可选外部模型 URL |
+| `llmAccess.apiKey` | string | 可选外部模型密钥（通过环境变量注入） |
+| `llmAccess.model` | string | 可选外部模型名称 |
+| `codex.enabled` | boolean | 是否启用 Codex 执行 |
+| `codex.command` | string | Codex 命令名 |
+| `codex.model` | string | Codex 模型参数 |
+| `codex.profile` | string | Codex profile |
+| `codex.fullAuto` | boolean | 是否启用 `--full-auto` |
+| `codex.dangerouslyBypassApprovalsAndSandbox` | boolean | 是否启用高风险放开参数 |
+| `codex.timeoutMs` | number | 单轮执行超时（ms） |
+| `codex.openAIApiKey` | string | 注入 `OPENAI_API_KEY` |
+| `codex.openAIBaseUrl` | string | 注入 `OPENAI_BASE_URL` |
+| `codex.environment` | object | 额外环境变量 |
+| `codex.extraArgs` | string[] | 追加给 Codex 的参数 |
+| `codex.additionalWritableDirs` | string[] | 额外可写目录（仅允许项目内路径） |
+| `codex.autoGitCommit` | boolean | 每轮完成后自动提交 |
+| `codex.autoGitPush` | boolean | 自动提交后是否推送 |
+| `codex.gitRemote` | string | 推送远端名 |
+| `codex.gitBranch` | string | 推送分支名 |
+| `codex.gitCommitPrefix` | string | 自动提交消息前缀 |

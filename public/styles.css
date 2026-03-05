@@ -1,0 +1,112 @@
+:root {
+    color-scheme: dark;
+    --bg: #0a0a0a;
+    --panel: #161616;
+    --text: #f2f2f2;
+    --muted: #b9b9b9;
+    --line: #2d2d2d;
+    --accent: #ff5c2a;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: radial-gradient(circle at top, #1b1b1b 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+.app {
+    width: min(920px, 92vw);
+    margin: 0 auto;
+    padding: 32px 0 48px;
+}
+
+.headline {
+    margin: 8px 0 24px;
+    text-align: center;
+    font-size: clamp(72px, 18vw, 180px);
+    line-height: 0.95;
+    letter-spacing: 0.18em;
+    font-weight: 900;
+    color: var(--text);
+    text-shadow: 0 10px 30px rgba(255, 92, 42, 0.22);
+}
+
+.panel {
+    background: color-mix(in srgb, var(--panel) 92%, #000 8%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.field {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.field.small {
+    max-width: 180px;
+}
+
+textarea,
+input[type="number"] {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #101010;
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 90px;
+}
+
+button {
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #090909;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+h2 {
+    margin: 0 0 10px;
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.log {
+    margin: 0;
+    min-height: 260px;
+    max-height: 460px;
+    overflow: auto;
+    background: #0c0c0c;
+    border: 1px solid #202020;
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #d5d5d5;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
