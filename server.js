@@ -33,7 +33,6 @@ let activeRunId = null;
 const TAG_COLOR_MAP = {
     SYSTEM: '\x1b[36m',
     AUTO: '\x1b[34m',
-    PROMPT: '\x1b[35m',
     HEARTBEAT: '\x1b[2m',
     GIT: '\x1b[33m',
     ERROR: '\x1b[31m',
@@ -54,6 +53,8 @@ const TAG_COLOR_MAP = {
 };
 
 const ANSI_RESET = '\x1b[0m';
+const CODEX_PHASE_TOKENS = new Set(['user', 'thinking', 'codex', 'exec', 'assistant']);
+const CODEX_META_LINE_REGEXP = /^(workdir|model|provider|approval|sandbox|session id|reasoning effort|reasoning summaries):/i;
 
 function supportsAnsiColor() {
     return Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
@@ -192,6 +193,7 @@ function getDefaultConfig() {
         },
         codex: {
             enabled: true,
+            dryRun: false,
             command: 'codex',
             model: 'gpt-5.3-codex-xhigh',
             profile: '',
@@ -256,6 +258,7 @@ function normalizeConfig(rawConfig) {
     normalized.llmAccess.model = String(normalized.llmAccess.model || '').trim();
 
     normalized.codex.enabled = Boolean(normalized.codex.enabled);
+    normalized.codex.dryRun = Boolean(normalized.codex.dryRun);
     normalized.codex.command = String(normalized.codex.command || defaults.codex.command).trim() || defaults.codex.command;
     normalized.codex.model = String(normalized.codex.model || '').trim();
     normalized.codex.profile = String(normalized.codex.profile || '').trim();
@@ -607,8 +610,7 @@ function classifyCodexStreamLine(line, source, state) {
     }
 
     const lower = content.toLowerCase();
-    const phaseTokens = new Set(['user', 'thinking', 'codex', 'exec', 'assistant']);
-    if (phaseTokens.has(lower)) {
+    if (CODEX_PHASE_TOKENS.has(lower)) {
         state.phase = lower;
         return `[CODEX-PHASE] ${content}`;
     }
@@ -616,7 +618,7 @@ function classifyCodexStreamLine(line, source, state) {
     if (
         /^OpenAI Codex v/i.test(content)
         || /^-+$/i.test(content)
-        || /^(workdir|model|provider|approval|sandbox|session id|reasoning effort|reasoning summaries):/i.test(content)
+        || CODEX_META_LINE_REGEXP.test(content)
     ) {
         return `[CODEX-META] ${content}`;
     }
@@ -863,6 +865,16 @@ async function runCodexIteration(input) {
         throw new Error('codex.enabled=false，已禁用进化执行');
     }
 
+    if (codex.dryRun) {
+        sendUpdate('[SYSTEM] dry-run=true，本轮仅做流程校验，跳过 Codex 执行与代码修改');
+        return {
+            sessionId: String(resumeSessionId || ''),
+            changedFiles: [],
+            gitResult: { committed: false, pushed: false, stagedFiles: [] },
+            outputTail: '[dry-run] codex execution skipped'
+        };
+    }
+
     const command = String(codex.command || 'codex').trim() || 'codex';
     const args = buildCodexExecArgs(config, workspaceDir, resumeSessionId);
     const env = buildCodexEnvironment(config);
@@ -959,10 +971,11 @@ async function executeEvolutionJob(input) {
         userPrompt,
         requestedIterations,
         sendUpdate,
-        shouldStop = () => false
+        shouldStop = () => false,
+        configOverride = null
     } = input;
 
-    const config = await loadConfig();
+    const config = configOverride ? normalizeConfig(configOverride) : await loadConfig();
     const workspaceDir = APP_ROOT;
     await ensureEvolutionBranchReady(config, workspaceDir, (message) => {
         sendUpdate(message, { loading: true, status: 'git_prepare' });
@@ -979,6 +992,9 @@ async function executeEvolutionJob(input) {
 
     sendUpdate(`[SYSTEM] 系统提示词已加载: ${systemPromptPath}`, { loading: true });
     sendUpdate(`[SYSTEM] 目标工作区: ${workspaceDir}`, { loading: true });
+    if (config.codex?.dryRun) {
+        sendUpdate('[SYSTEM] 当前为 dry-run 模式：不会执行 Codex，也不会修改仓库文件', { loading: true });
+    }
     if (llmHintEnabled) {
         sendUpdate('[SYSTEM] 已启用运行时外部模型调用信息注入（llmAccess）', { loading: true });
     } else {
@@ -1119,6 +1135,16 @@ async function runCliEvolutionMode() {
     }
 
     const config = await loadConfig();
+    const cliDryRunEnabled = hasCliFlag('--dry-run') || hasCliFlag('--dry');
+    const effectiveConfig = cliDryRunEnabled
+        ? {
+            ...config,
+            codex: {
+                ...(config.codex || {}),
+                dryRun: true
+            }
+        }
+        : config;
     let userPrompt = String(getCliArgValue('--prompt') || '').trim();
     if (!userPrompt) {
         if (!process.stdin.isTTY) {
@@ -1138,11 +1164,15 @@ async function runCliEvolutionMode() {
     console.log(formatAutoEvolveConsoleLine(`[CLI] 已启动终端自进化模式，runId=${runId}`));
     console.log(formatAutoEvolveConsoleLine(`[CLI] 目标轮次=${requestedIterations}`));
     console.log(formatAutoEvolveConsoleLine(`[CLI] 用户方向 Prompt=${userPrompt}`));
+    if (effectiveConfig.codex?.dryRun) {
+        console.log(formatAutoEvolveConsoleLine('[CLI] dry-run=true（可通过 config.codex.dryRun 或 --dry-run 启用）'));
+    }
 
     try {
         const summary = await executeEvolutionJob({
             userPrompt,
             requestedIterations,
+            configOverride: effectiveConfig,
             sendUpdate: (message) => {
                 console.log(formatAutoEvolveConsoleLine(message));
             },

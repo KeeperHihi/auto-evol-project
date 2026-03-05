@@ -84,6 +84,12 @@ CLI 模式（脚本传参）：
 npm run cli-evolve -- --prompt="做一个极简 AI 作品集网站" --iterations=3
 ```
 
+CLI dry-run（只校验流程，不执行 Codex，不修改代码）：
+
+```bash
+npm run cli-evolve -- --prompt="做一个极简 AI 作品集网站" --iterations=1 --dry-run
+```
+
 开发热重启：
 
 ```bash
@@ -183,6 +189,7 @@ npm run dev:watch
 | `llmAccess.apiKey` | string | 可选外部模型密钥（通过环境变量注入） |
 | `llmAccess.model` | string | 可选外部模型名称 |
 | `codex.enabled` | boolean | 是否启用 Codex 执行 |
+| `codex.dryRun` | boolean | 是否启用 dry-run（仅校验流程，不执行 Codex，不修改仓库） |
 | `codex.command` | string | Codex 命令名 |
 | `codex.model` | string | Codex 模型参数 |
 | `codex.profile` | string | Codex profile |

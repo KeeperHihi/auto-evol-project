@@ -16,6 +16,7 @@
   },
   "codex": {
     "enabled": true,
+    "dryRun": false,
     "command": "codex",
     "model": "gpt-5.3-codex-xhigh",
     "profile": "",
