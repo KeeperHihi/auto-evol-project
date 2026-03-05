@@ -435,6 +435,7 @@ function buildIterationPrompt(input) {
     sections.push('2. 直接修改代码实现本轮演进。');
     sections.push('3. 尽量执行必要验证命令（至少语法检查）。');
     sections.push('4. 在输出末尾说明本轮核心改动、验证结果和下一轮建议。');
+    sections.push('5. 若本轮有代码改动，请在最后单独输出一行：COMMIT_MESSAGE: <建议提交信息>。');
 
     return sections.join('\n');
 }
@@ -451,6 +452,45 @@ function extractTail(text, maxLength) {
 function extractCodexSessionId(text) {
     const match = String(text || '').match(/session id:\s*([0-9a-f-]{36})/i);
     return match ? match[1] : '';
+}
+
+function sanitizeCommitMessage(message) {
+    return String(message || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 200);
+}
+
+function extractCodexCommitMessage(text) {
+    const source = String(text || '');
+    const patterns = [
+        /^\s*COMMIT_MESSAGE\s*[:：]\s*(.+)$/im,
+        /^\s*(?:commit\s+message|提交信息)\s*[:：]\s*(.+)$/im
+    ];
+
+    for (const pattern of patterns) {
+        const match = source.match(pattern);
+        if (!match) {
+            continue;
+        }
+        const normalized = sanitizeCommitMessage(match[1]);
+        if (normalized) {
+            return normalized;
+        }
+    }
+
+    return '';
+}
+
+function buildFallbackCommitSummary(changedFiles) {
+    const files = Array.isArray(changedFiles) ? changedFiles.filter(Boolean) : [];
+    if (files.length === 0) {
+        return 'autonomous evolution';
+    }
+
+    const preview = files.slice(0, 3).join(', ');
+    const suffix = files.length > 3 ? ` +${files.length - 3} files` : '';
+    return sanitizeCommitMessage(`update ${files.length} file(s): ${preview}${suffix}`);
 }
 
 function buildCodexExecArgs(config, workspaceDir, resumeSessionId) {
@@ -778,7 +818,8 @@ async function getChangedFilesFromGit(workspaceDir) {
         });
 }
 
-async function commitAndPushChanges(config, workspaceDir, taskPrompt, changedFiles, sendUpdate) {
+async function commitAndPushChanges(config, workspaceDir, options, sendUpdate) {
+    const { changedFiles, codexSuggestedMessage } = options || {};
     const codex = config.codex || {};
     if (!codex.autoGitCommit) {
         sendUpdate('[GIT] autoGitCommit=false，跳过自动提交。');
@@ -822,8 +863,12 @@ async function commitAndPushChanges(config, workspaceDir, taskPrompt, changedFil
         return { committed: false, pushed: false, stagedFiles: [] };
     }
 
-    const summary = String(taskPrompt || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-    const commitMessage = `${codex.gitCommitPrefix || 'Codex Evolution:'} ${summary || 'autonomous evolution'}`.trim();
+    const prefix = String(codex.gitCommitPrefix || 'Codex Evolution:').trim() || 'Codex Evolution:';
+    const suggested = sanitizeCommitMessage(codexSuggestedMessage);
+    const messageBody = suggested || buildFallbackCommitSummary(stagedFiles);
+    const commitMessage = suggested.startsWith(prefix)
+        ? suggested
+        : `${prefix} ${messageBody}`.trim();
     sendUpdate(`[GIT] 提交变更到分支 ${targetBranch}: ${commitMessage}`);
 
     const commitResult = await runGitCommand(workspaceDir, ['commit', '-m', commitMessage], 60000);
@@ -931,7 +976,16 @@ async function runCodexIteration(input) {
         }
 
         const changedFiles = await getChangedFilesFromGit(workspaceDir);
-        const gitResult = await commitAndPushChanges(config, workspaceDir, prompt, changedFiles, sendUpdate);
+        const codexSuggestedMessage = extractCodexCommitMessage(`${result.stdout}\n${result.stderr}`);
+        const gitResult = await commitAndPushChanges(
+            config,
+            workspaceDir,
+            {
+                changedFiles,
+                codexSuggestedMessage
+            },
+            sendUpdate
+        );
         const sessionId = observedSessionId || extractCodexSessionId(`${result.stdout}\n${result.stderr}`) || String(resumeSessionId || '');
 
         return {
