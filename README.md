@@ -31,7 +31,7 @@ npm install
 3. 准备配置
 
 ```bash
-# 执行下面代码
+# 执行下面指令
 cp config.example.json config.json
 
 # 然后在 config.json 修改参数:
