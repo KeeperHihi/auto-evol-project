@@ -17,9 +17,13 @@
 
 ## 快速开始
 
-1. 建立个人仓库
+1. 部署源码
    
-新建一个 `github` 仓库，创建 `main` 分支，把本项目源码传上去
+```bash
+# 只需要 main 分支，demo 分支为生成的样例
+git clone --branch main --single-branch https://github.com/KeeperHihi/auto-revo-web.git
+```
+然后要**新建**一个你自己的 `github` 仓库，创建 `main` 分支，把本项目源码传上去。
 
 2. 安装依赖
 
