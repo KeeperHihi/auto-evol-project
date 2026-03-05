@@ -17,13 +17,13 @@
 
 ## 快速开始
 
-0. 务必保证本机的 `codex CLI` 可以使用
+### 1. 务必保证本机的 `codex CLI` 可以使用
 
 配置教程见 [codex 配置教程](https://docs.right.codes/docs/rc_cli_config/codex.html)
 
 只需要将 `RightCode` 教程中的 `config.toml` 和 `auth.json` 两个文件按照你自己运营商的相关配置写好即可。
 
-1. 部署源码
+### 2. 部署源码
    
 ```bash
 # 只需要 main 分支，demo 分支为生成的样例，想查看者也可以一起 clone 下来看看 
@@ -42,14 +42,14 @@ git push origin main
 ```
 
 
-1. 安装依赖
+### 3. 安装依赖
 
 ```bash
 # 终端进入项目根目录，然后
 npm install
 ```
 
-3. 准备配置
+### 4. 准备配置
 
 ```bash
 # 执行下面指令
@@ -66,14 +66,14 @@ cp config.example.json config.json
 # 配置文件各个参数解释见 README 最下方。
 ```
 
-4. 测试网页启动
+### 5. 测试网页启动
 
 ```bash
 npm run dev
 # 然后打开本地 localhost:6161，测试网页是否能正常显示。
 ```
 
-1. 启动自进化
+### 6. 启动自进化
 
 交互模式：
 
