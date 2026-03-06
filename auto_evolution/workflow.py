@@ -66,7 +66,7 @@ def run_evolution(
 
     total_iterations = config.iterations
 
-    log(f"[SYSTEM] 目标站点目录：{workspace}")
+    log(f"[SYSTEM] 目标网站仓库目录：{workspace}")
     log(f"[SYSTEM] 迭代轮次：{total_iterations}")
     log(f"[SYSTEM] 演练模式：{dry_run}")
 

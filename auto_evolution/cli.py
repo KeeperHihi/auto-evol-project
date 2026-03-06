@@ -10,14 +10,14 @@ from auto_evolution.workflow import run_evolution
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="自动进化脚本入口（在 webs/<siteName> 独立仓库中执行迭代）",
-        usage="python evolution.py [--site 站点名] [--iterations 轮次] [--prompt 创意] [--dry-run]",
+        usage="python evolution.py [--site 网站仓库名] [--iterations 轮次] [--prompt 创意] [--dry-run]",
         add_help=False,
         allow_abbrev=False,
     )
     parser._positionals.title = "位置参数"
     parser._optionals.title = "可选参数"
     parser.add_argument("-h", "--help", action="help", help="显示帮助信息并退出")
-    parser.add_argument("--site", help="覆盖 config.json 中的 siteName（目标站点目录名）")
+    parser.add_argument("--site", help="覆盖 config.json 中的 siteName（目标网站仓库目录名）")
     parser.add_argument(
         "--iterations",
         type=int,

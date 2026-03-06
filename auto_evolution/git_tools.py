@@ -102,7 +102,7 @@ def resolve_workspace(app_root: Path, site_name: str) -> Path:
     workspace = resolve_workspace_path(app_root, site_name)
     if not workspace.exists() or not workspace.is_dir():
         raise FileNotFoundError(
-            f"未找到站点目录: {workspace}\n"
+            f"未找到网站仓库目录: {workspace}\n"
             "请先创建空仓库目录，例如: mkdir -p webs/<siteName> && cd webs/<siteName> && git init"
         )
 
