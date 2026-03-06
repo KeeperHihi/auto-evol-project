@@ -8,7 +8,7 @@
 ## 工作流
 
 - `webs/<siteName>` 下每个子目录都是一个独立网站仓库。
-- 用户可以从空仓库开始，只提供一句创意 `idea` 逐轮进化。
+- 你可以从空仓库开始，只提供一句创意 `idea` 逐轮进化。
 - 每轮迭代后，脚本会在该子仓库内自动推送到远程仓库。
 
 ## 代码结构
@@ -91,7 +91,7 @@ python evolution.py --dry-run # 测试本地流程是否能跑通
 - `intervalSeconds`：轮次间隔秒数。
 - `appendIterationContext`：是否在每轮 Prompt 附带迭代上下文。
 - `systemPromptFile`：系统提示词路径。
-- `userPromptFile`：用户创意提示词路径。
+- `userPromptFile`：你创意提示词路径。
 - `llmAccess`：（可选）提供给 `codex` 的大模型调用接口。
 - `codex.command`：Codex 命令名。
 - `codex.model`：Codex 模型参数。
