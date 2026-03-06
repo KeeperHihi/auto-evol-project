@@ -26,6 +26,7 @@
 ## 快速开始
 
 1. 确保本机可用：`python3`、`git`、`codex`。
+   若要启用 `autoGitInit`，还需安装并登录 `gh`（`gh auth login`）。
 
 2. 准备配置文件：
 
@@ -81,6 +82,7 @@ python3 evolution.py --dry-run
 - `codex.gitRemote`：推送远端名，默认 `origin`。
 - `codex.gitBranch`：推送分支名，默认 `main`。
 - `codex.gitCommitPrefix`：提交信息前缀（可留空）。
+- `codex.autoGitInit`：自动初始化仓库机制。启用后若本地站点目录未绑定远端，会自动检测当前 GitHub 账号下是否有同名仓库；有则绑定并拉取，无则自动创建后绑定。
 
 ## 说明
 

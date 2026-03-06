@@ -26,6 +26,7 @@ class CodexConfig:
         default_factory=lambda: ["-c", 'model_reasoning_effort="xhigh"']
     )
     dry_run: bool = False
+    auto_git_init: bool = False
     auto_git_commit: bool = True
     auto_git_push: bool = True
     git_remote: str = "origin"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -23,7 +24,70 @@ def run_git(workspace: Path, args: list[str], timeout_seconds: int = 60) -> subp
         raise RuntimeError("未找到 git 命令，请先安装 git") from exc
 
 
-def resolve_workspace(app_root: Path, site_name: str) -> Path:
+def run_command(
+    command: list[str],
+    cwd: Path | None = None,
+    timeout_seconds: int = 60,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"未找到命令: {command[0]}") from exc
+
+
+def run_gh(args: list[str], timeout_seconds: int = 60) -> subprocess.CompletedProcess[str]:
+    return run_command(["gh", *args], timeout_seconds=timeout_seconds)
+
+
+def ensure_gh_cli_ready() -> None:
+    if shutil.which("gh") is None:
+        raise RuntimeError(
+            "autoGitInit 已启用，但未检测到 gh CLI。\n"
+            "请先安装 GitHub CLI，并执行 gh auth login 完成登录。"
+        )
+
+
+def detect_github_login() -> str:
+    result = run_gh(["api", "user", "--jq", ".login"], timeout_seconds=30)
+    if result.returncode != 0:
+        details = extract_tail(result.stderr or result.stdout, 400)
+        raise RuntimeError(
+            "无法获取当前 GitHub 用户名，请先执行 gh auth login。\n"
+            f"详细信息: {details}"
+        )
+    login = (result.stdout or "").strip()
+    if not login:
+        raise RuntimeError("无法获取 GitHub 用户名，请检查 gh 登录状态。")
+    return login
+
+
+def github_repo_exists(owner: str, repo_name: str) -> bool:
+    result = run_gh(
+        ["repo", "view", f"{owner}/{repo_name}", "--json", "name", "--jq", ".name"],
+        timeout_seconds=30,
+    )
+    return result.returncode == 0
+
+
+def github_create_repo(owner: str, repo_name: str) -> None:
+    result = run_gh(
+        ["repo", "create", f"{owner}/{repo_name}", "--private", "--clone=false"],
+        timeout_seconds=120,
+    )
+    if result.returncode != 0:
+        details = extract_tail(result.stderr or result.stdout, 600)
+        raise RuntimeError(f"创建 GitHub 仓库失败: {details}")
+    log(f"[GIT] 已创建 GitHub 仓库: {owner}/{repo_name}")
+
+
+def resolve_workspace_path(app_root: Path, site_name: str) -> Path:
     webs_root = (app_root / "webs").resolve()
     webs_root.mkdir(parents=True, exist_ok=True)
     workspace = (webs_root / site_name).resolve()
@@ -31,6 +95,11 @@ def resolve_workspace(app_root: Path, site_name: str) -> Path:
     if workspace != webs_root and webs_root not in workspace.parents:
         raise ValueError("siteName 非法，必须位于 webs 目录内")
 
+    return workspace
+
+
+def resolve_workspace(app_root: Path, site_name: str) -> Path:
+    workspace = resolve_workspace_path(app_root, site_name)
     if not workspace.exists() or not workspace.is_dir():
         raise FileNotFoundError(
             f"未找到站点目录: {workspace}\n"
@@ -47,6 +116,61 @@ def ensure_workspace_is_git_repo(workspace: Path) -> None:
             f"{workspace} 不是 git 仓库。\n"
             "请先在该目录执行 git init，并按需配置远端。"
         )
+
+
+def workspace_has_any_files(workspace: Path) -> bool:
+    try:
+        next(workspace.iterdir())
+    except StopIteration:
+        return False
+    return True
+
+
+def git_repo_has_remote(workspace: Path, remote_name: str) -> bool:
+    result = run_git(workspace, ["remote", "get-url", remote_name], timeout_seconds=30)
+    return result.returncode == 0
+
+
+def add_git_remote(workspace: Path, remote_name: str, remote_url: str) -> None:
+    result = run_git(workspace, ["remote", "add", remote_name, remote_url], timeout_seconds=30)
+    if result.returncode != 0:
+        details = extract_tail(result.stderr or result.stdout, 500)
+        raise RuntimeError(f"绑定远端失败: {details}")
+    log(f"[GIT] 已绑定远端 {remote_name}: {remote_url}")
+
+
+def clone_repo_to_workspace(workspace: Path, remote_url: str) -> None:
+    parent = workspace.parent
+    result = run_command(
+        ["git", "clone", remote_url, workspace.name],
+        cwd=parent,
+        timeout_seconds=180,
+    )
+    if result.returncode != 0:
+        details = extract_tail(result.stderr or result.stdout, 800)
+        raise RuntimeError(f"克隆仓库失败: {details}")
+    log(f"[GIT] 已克隆仓库到: {workspace}")
+
+
+def pull_remote_branch_if_exists(workspace: Path, remote_name: str, branch_name: str) -> None:
+    has_remote_branch = run_git(
+        workspace,
+        ["ls-remote", "--heads", remote_name, branch_name],
+        timeout_seconds=30,
+    )
+    if has_remote_branch.returncode != 0:
+        details = extract_tail(has_remote_branch.stderr or has_remote_branch.stdout, 500)
+        raise RuntimeError(f"检查远端分支失败: {details}")
+
+    if not (has_remote_branch.stdout or "").strip():
+        log(f"[GIT] 远端分支 {remote_name}/{branch_name} 不存在，跳过 pull")
+        return
+
+    pull_result = run_git(workspace, ["pull", remote_name, branch_name], timeout_seconds=180)
+    if pull_result.returncode != 0:
+        details = extract_tail(pull_result.stderr or pull_result.stdout, 800)
+        raise RuntimeError(f"拉取远端分支失败: {details}")
+    log(f"[GIT] 已拉取最新代码: {remote_name}/{branch_name}")
 
 
 def get_current_branch_name(workspace: Path) -> str:
@@ -83,6 +207,59 @@ def ensure_remote_ready(workspace: Path, remote_name: str) -> None:
             f"未找到远端 {remote_name}。\n"
             f"请先在 {workspace} 执行: git remote add {remote_name} <你的仓库地址>"
         )
+
+
+def prepare_workspace_with_auto_git_init(app_root: Path, config: AppConfig) -> Path:
+    workspace = resolve_workspace_path(app_root, config.site_name)
+    remote_name = config.codex.git_remote
+    target_branch = normalize_branch_name(config.codex.git_branch)
+
+    github_login: str | None = None
+
+    def ensure_remote_repo_and_url() -> str:
+        nonlocal github_login
+        ensure_gh_cli_ready()
+        if not github_login:
+            github_login = detect_github_login()
+
+        repo_name = config.site_name
+        exists = github_repo_exists(github_login, repo_name)
+        if not exists:
+            log(f"[GIT] 未检测到远端仓库 {github_login}/{repo_name}，正在创建")
+            github_create_repo(github_login, repo_name)
+        else:
+            log(f"[GIT] 检测到远端仓库已存在: {github_login}/{repo_name}")
+        return f"https://github.com/{github_login}/{repo_name}.git"
+
+    if not workspace.exists():
+        remote_url = ensure_remote_repo_and_url()
+        clone_repo_to_workspace(workspace, remote_url)
+        return workspace
+
+    if not workspace.is_dir():
+        raise RuntimeError(f"目标路径不是目录: {workspace}")
+
+    git_check = run_git(workspace, ["rev-parse", "--is-inside-work-tree"], timeout_seconds=30)
+    is_git_repo = git_check.returncode == 0 and (git_check.stdout or "").strip() == "true"
+
+    if not is_git_repo:
+        if workspace_has_any_files(workspace):
+            raise RuntimeError(
+                f"{workspace} 已存在且不是 git 仓库，并且目录非空。\n"
+                "为避免覆盖用户文件，请清空目录或更换 siteName 后重试。"
+            )
+        init_result = run_git(workspace, ["init"], timeout_seconds=30)
+        if init_result.returncode != 0:
+            details = extract_tail(init_result.stderr or init_result.stdout, 500)
+            raise RuntimeError(f"初始化 git 仓库失败: {details}")
+        log(f"[GIT] 已初始化本地仓库: {workspace}")
+
+    if not git_repo_has_remote(workspace, remote_name):
+        remote_url = ensure_remote_repo_and_url()
+        add_git_remote(workspace, remote_name, remote_url)
+
+    pull_remote_branch_if_exists(workspace, remote_name, target_branch)
+    return workspace
 
 
 def inspect_workspace_state(workspace: Path) -> str:

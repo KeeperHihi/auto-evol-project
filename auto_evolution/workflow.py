@@ -15,6 +15,7 @@ from auto_evolution.git_tools import (
     ensure_remote_ready,
     ensure_workspace_is_git_repo,
     inspect_workspace_state,
+    prepare_workspace_with_auto_git_init,
     resolve_workspace,
 )
 from auto_evolution.logging_utils import log
@@ -41,8 +42,12 @@ def run_evolution(
     if iterations_override is not None:
         config.iterations = max(1, int(iterations_override))
 
-    workspace = resolve_workspace(APP_ROOT, config.site_name)
-    ensure_workspace_is_git_repo(workspace)
+    if config.codex.auto_git_init:
+        log("[GIT] autoGitInit=true，启用自动仓库初始化流程")
+        workspace = prepare_workspace_with_auto_git_init(APP_ROOT, config)
+    else:
+        workspace = resolve_workspace(APP_ROOT, config.site_name)
+        ensure_workspace_is_git_repo(workspace)
 
     system_prompt_path = resolve_local_path_from_root(
         APP_ROOT, config.system_prompt_file, "systemPromptFile"

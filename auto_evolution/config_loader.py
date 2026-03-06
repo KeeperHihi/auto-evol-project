@@ -187,6 +187,8 @@ def normalize_config(raw: dict[str, Any]) -> AppConfig:
                 config.codex.extra_args = extra_args
         if "dryRun" in codex_raw:
             config.codex.dry_run = to_bool(codex_raw.get("dryRun"), config.codex.dry_run)
+        if "autoGitInit" in codex_raw:
+            config.codex.auto_git_init = to_bool(codex_raw.get("autoGitInit"), config.codex.auto_git_init)
         if "autoGitCommit" in codex_raw:
             config.codex.auto_git_commit = to_bool(
                 codex_raw.get("autoGitCommit"), config.codex.auto_git_commit
