@@ -31,7 +31,7 @@ from auto_evolution.text_tools import extract_tail
 
 
 def run_evolution(
-    site_override: str | None,
+    project_override: str | None,
     iterations_override: int | None,
     prompt_override: str | None,
     dry_run_override: bool,
@@ -40,14 +40,14 @@ def run_evolution(
 
     config = load_config(CONFIG_FILE)
 
-    if site_override:
-        config.site_name = site_override.strip()
+    if project_override:
+        config.project_name = project_override.strip()
     if iterations_override is not None:
         config.iterations = max(1, int(iterations_override))
 
     dry_run = dry_run_override or config.codex.dry_run
     if dry_run:
-        workspace = resolve_workspace(APP_ROOT, config.site_name)
+        workspace = resolve_workspace(APP_ROOT, config.project_name)
         ensure_workspace_is_git_repo(workspace)
         if config.codex.auto_git_init:
             log("[GIT] dry-run 模式下跳过 autoGitInit，仅校验本地仓库状态")
@@ -56,7 +56,7 @@ def run_evolution(
             log("[GIT] autoGitInit=true，启用自动仓库初始化流程")
             workspace = prepare_workspace_with_auto_git_init(APP_ROOT, config)
         else:
-            workspace = resolve_workspace(APP_ROOT, config.site_name)
+            workspace = resolve_workspace(APP_ROOT, config.project_name)
             ensure_workspace_is_git_repo(workspace)
 
     system_prompt_path = resolve_local_path_from_root(
@@ -69,7 +69,7 @@ def run_evolution(
 
     total_iterations = config.iterations
 
-    log(f"[SYSTEM] 目标网站仓库目录：{workspace}")
+    log(f"[SYSTEM] 目标项目仓库目录：{workspace}")
     log(f"[SYSTEM] 迭代轮次：{total_iterations}")
     log(f"[SYSTEM] 演练模式：{dry_run}")
 
@@ -86,7 +86,7 @@ def run_evolution(
 
     workspace_state = inspect_workspace_state(workspace)
     if workspace_state == "empty":
-        log("[SYSTEM] 检测到空仓库，将从 0 开始生成网站")
+        log("[SYSTEM] 检测到空仓库，将从 0 开始生成项目")
     else:
         log("[SYSTEM] 检测到仓库已有内容，将在现有基础上继续进化")
 

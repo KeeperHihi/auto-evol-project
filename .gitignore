@@ -1,5 +1,5 @@
-webs/**
-!webs/.gitkeep
+projects/**
+!projects/.gitkeep
 config.json
 __pycache__/
 *.pyc

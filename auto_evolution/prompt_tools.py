@@ -50,7 +50,7 @@ def render_system_prompt(template: str, llm_config: LlmAccessConfig) -> str:
 
 def ask_user_prompt() -> str:
     try:
-        return input("请输入你的一句话网站创意：").strip()
+        return input("请输入你的一句话项目创意：").strip()
     except EOFError:
         return ""
 
@@ -71,7 +71,7 @@ def resolve_user_prompt(app_root: Path, cli_prompt: str | None, config: AppConfi
             return interactive_prompt
 
     raise ValueError(
-        f"用户创意为空，请填写 {prompt_file}，或通过 --prompt 参数传入一句创意"
+        f"用户创意为空，请填写 {prompt_file}，或通过 --prompt 参数传入一句项目创意"
     )
 
 

@@ -116,8 +116,8 @@ def normalize_config(raw: dict[str, Any]) -> AppConfig:
     llm_access_raw = raw.get("llmAccess", {}) if isinstance(raw.get("llmAccess"), dict) else {}
     codex_raw = raw.get("codex", {}) if isinstance(raw.get("codex"), dict) else {}
 
-    if "siteName" in raw:
-        config.site_name = to_str(raw.get("siteName"), config.site_name)
+    if "projectName" in raw:
+        config.project_name = to_str(raw.get("projectName"), config.project_name)
     if "iterations" in raw:
         config.iterations = to_int(raw.get("iterations"), config.iterations, minimum=1)
     if "intervalSeconds" in raw:
@@ -176,7 +176,7 @@ def normalize_config(raw: dict[str, Any]) -> AppConfig:
                 codex_raw.get("gitCommitPrefix"), config.codex.git_commit_prefix
             )
 
-    config.site_name = config.site_name.strip()
+    config.project_name = config.project_name.strip()
     config.iterations = max(1, config.iterations)
     config.interval_seconds = max(0, config.interval_seconds)
     config.codex.timeout_seconds = max(1, config.codex.timeout_seconds)
@@ -184,8 +184,8 @@ def normalize_config(raw: dict[str, Any]) -> AppConfig:
     config.codex.git_remote = config.codex.git_remote.strip() or "origin"
     config.codex.git_branch = normalize_branch_name(config.codex.git_branch) or "main"
 
-    if not config.site_name:
-        raise ValueError("siteName 不能为空")
+    if not config.project_name:
+        raise ValueError("projectName 不能为空")
 
     return config
 

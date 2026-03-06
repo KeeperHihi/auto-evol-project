@@ -1,5 +1,5 @@
 {
-  "siteName": "demo",
+  "projectName": "demo",
   "iterations": 3,
   "intervalSeconds": 30,
   "appendIterationContext": true,

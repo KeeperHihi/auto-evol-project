@@ -36,7 +36,7 @@ class CodexConfig:
 
 @dataclass
 class AppConfig:
-    site_name: str = "demo"
+    project_name: str = "demo"
     iterations: int = 3
     interval_seconds: int = 30
     append_iteration_context: bool = True

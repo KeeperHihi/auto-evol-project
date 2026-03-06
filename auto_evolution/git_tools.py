@@ -143,23 +143,23 @@ def github_create_repo(owner: str, repo_name: str) -> None:
     log(f"[GIT] 已创建 GitHub 仓库: {owner}/{repo_name}")
 
 
-def resolve_workspace_path(app_root: Path, site_name: str) -> Path:
-    webs_root = (app_root / "webs").resolve()
-    webs_root.mkdir(parents=True, exist_ok=True)
-    workspace = (webs_root / site_name).resolve()
+def resolve_workspace_path(app_root: Path, project_name: str) -> Path:
+    projects_root = (app_root / "projects").resolve()
+    projects_root.mkdir(parents=True, exist_ok=True)
+    workspace = (projects_root / project_name).resolve()
 
-    if workspace != webs_root and webs_root not in workspace.parents:
-        raise ValueError("siteName 非法，必须位于 webs 目录内")
+    if workspace != projects_root and projects_root not in workspace.parents:
+        raise ValueError("projectName 非法，必须位于 projects 目录内")
 
     return workspace
 
 
-def resolve_workspace(app_root: Path, site_name: str) -> Path:
-    workspace = resolve_workspace_path(app_root, site_name)
+def resolve_workspace(app_root: Path, project_name: str) -> Path:
+    workspace = resolve_workspace_path(app_root, project_name)
     if not workspace.exists() or not workspace.is_dir():
         raise FileNotFoundError(
-            f"未找到网站仓库目录: {workspace}\n"
-            "请先创建空仓库目录，例如: mkdir -p webs/<siteName> && cd webs/<siteName> && git init"
+            f"未找到项目仓库目录: {workspace}\n"
+            "请先创建空仓库目录，例如: mkdir -p projects/<projectName> && cd projects/<projectName> && git init"
         )
 
     return workspace
@@ -176,7 +176,7 @@ def ensure_workspace_is_git_repo(workspace: Path) -> None:
     if top_level != resolved_workspace:
         raise RuntimeError(
             f"{workspace} 不是独立 git 仓库（当前仓库根目录: {top_level}）。\n"
-            "请确保 webs/<siteName> 是独立仓库目录。"
+            "请确保 projects/<projectName> 是独立仓库目录。"
         )
 
 
@@ -282,7 +282,7 @@ def ensure_remote_ready(workspace: Path, remote_name: str) -> None:
 
 
 def prepare_workspace_with_auto_git_init(app_root: Path, config: AppConfig) -> Path:
-    workspace = resolve_workspace_path(app_root, config.site_name)
+    workspace = resolve_workspace_path(app_root, config.project_name)
     remote_name = config.codex.git_remote
     target_branch = normalize_branch_name(config.codex.git_branch)
 
@@ -294,7 +294,7 @@ def prepare_workspace_with_auto_git_init(app_root: Path, config: AppConfig) -> P
         if not github_login:
             github_login = detect_github_login()
 
-        repo_name = config.site_name
+        repo_name = config.project_name
         exists = github_repo_exists(github_login, repo_name)
         if not exists:
             log(f"[GIT] 未检测到远端仓库 {github_login}/{repo_name}，正在创建")
@@ -316,7 +316,7 @@ def prepare_workspace_with_auto_git_init(app_root: Path, config: AppConfig) -> P
     if repo_top_level and repo_top_level != resolved_workspace:
         raise RuntimeError(
             f"{workspace} 位于另一个 git 仓库中（根目录: {repo_top_level}）。\n"
-            "为避免误操作，请更换 siteName 或将目标目录独立初始化为仓库。"
+            "为避免误操作，请更换 projectName 或将目标目录独立初始化为仓库。"
         )
 
     is_git_repo = repo_top_level == resolved_workspace
@@ -325,7 +325,7 @@ def prepare_workspace_with_auto_git_init(app_root: Path, config: AppConfig) -> P
         if workspace_has_any_files(workspace):
             raise RuntimeError(
                 f"{workspace} 已存在且不是 git 仓库，并且目录非空。\n"
-                "为避免覆盖用户文件，请清空目录或更换 siteName 后重试。"
+                "为避免覆盖用户文件，请清空目录或更换 projectName 后重试。"
             )
         init_result = run_git(workspace, ["init"], timeout_seconds=30)
         if init_result.returncode != 0:
