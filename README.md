@@ -9,10 +9,7 @@
 
 - `webs/<siteName>` 下每个子目录都是一个独立网站仓库。
 - 用户可以从空仓库开始，只提供一句创意 `idea` 逐轮进化。
-- 每轮执行后，脚本会在该子仓库内自动执行：
-  - `git add -A`
-  - `git commit -m "<Codex 提供的提交信息>"`
-  - `git push -u origin main`
+- 每轮迭代后，脚本会在该子仓库内自动推送到远程仓库。
 
 ## 代码结构
 
@@ -23,11 +20,11 @@
 - `auto_evolution/logging_utils.py`：彩色日志与 Codex 输出分类。
 - `auto_evolution/prompt_tools.py`：提示词读取与迭代 Prompt 组装。
 - `auto_evolution/codex_runner.py`：Codex 执行、重试、会话恢复、提交信息提取。
-- `auto_evolution/git_tools.py`：站点仓库检查、分支与远端检查，自动创建仓库、提交推送。
+- `auto_evolution/git_tools.py`：网站仓库检查、分支与远端检查，自动创建仓库、提交推送。
 
 ## 环境要求
 
-- `python`
+- `python`，基础环境即可
 - `git`
 - 本机必须配置好 `codex CLI`
 - （非常建议）若要启用 `autoGitInit`，还需安装 `gh` 并登录：`gh auth login`，便于自动化 `git` 操作
@@ -39,7 +36,6 @@
 配置教程见 [codex 配置教程](https://docs.right.codes/docs/rc_cli_config/codex.html)
 
 只需要将 `RightCode` 教程中的 `config.toml` 和 `auth.json` 两个文件按照你自己运营商的相关配置写好即可。
-
 
 ### 1. 准备配置文件
 
@@ -64,6 +60,7 @@ git remote add origin <你的空仓库地址>
 ```
 
 ### 3. 设置好 prompts
+在项目根目录执行：
 ```bash
 cp prompts/sys-prompt.template.md prompts/sys-prompt.md
 cp prompts/user-prompt.template.md prompts/user-prompt.md
@@ -72,8 +69,8 @@ cp prompts/user-prompt.template.md prompts/user-prompt.md
 
 记得填写你的创意 `idea` 到 `prompts/user-prompt.md`。
 
-### 4. 回到项目根目录，启动进化
-
+### 4. 启动进化
+在项目根目录执行：
 ```bash
 python evolution.py
 ```
@@ -89,27 +86,27 @@ python evolution.py --dry-run # 只做本地只读校验（不调用 Codex、不
 
 ## 配置字段（`config.json`）
 
-- `siteName`：目标站点目录名，对应 `webs/<siteName>`。
-- `iterations`：默认迭代轮次。
+- `siteName`：你的网站仓库名，对应 `webs/<siteName>`。
+- `iterations`：迭代轮次。
 - `intervalSeconds`：轮次间隔秒数。
 - `appendIterationContext`：是否在每轮 Prompt 附带迭代上下文。
 - `systemPromptFile`：系统提示词路径。
 - `userPromptFile`：用户创意提示词路径。
-- `llmAccess`：可选运行时外部模型注入信息。
+- `llmAccess`：（可选）提供给 `codex` 的大模型调用接口。
 - `codex.command`：Codex 命令名。
 - `codex.model`：Codex 模型参数。
-- `codex.profile`：可选 profile。
-- `codex.dangerouslyBypassApprovalsAndSandbox`：是否追加该参数。
+- `codex.profile`：（可选）profile。
+- `codex.dangerouslyBypassApprovalsAndSandbox`：是否给予 `codex` 最高权限，此项默认为 `true`，为 `false` 则无法改动代码。
 - `codex.timeoutSeconds`：单轮超时秒数。
 - `codex.retries`：单轮失败重试次数。
 - `codex.extraArgs`：追加给 Codex 的参数。
-- `codex.dryRun`：仅做本地只读演练，不调用 Codex，不触发 autoGitInit，不切换分支，不做远端检查。
-- `codex.autoGitCommit`：每轮后是否自动提交。
-- `codex.autoGitPush`：每轮后是否自动推送。
+- `codex.dryRun`：测试本地流程是否能跑通，不调用 Codex，不触发 autoGitInit，不切换分支，不做远端检查。
+- `codex.autoGitCommit`：每轮迭代后是否自动提交。
+- `codex.autoGitPush`：每轮迭代后是否自动推送。（若为 `true` 则要求 `autoGitCommit=true`）
 - `codex.gitRemote`：推送远端名，默认 `origin`。
 - `codex.gitBranch`：推送分支名，默认 `main`。
 - `codex.gitCommitPrefix`：提交信息前缀（可留空）。
-- `codex.autoGitInit`：自动初始化仓库机制。启用后若本地站点目录未绑定远端，会自动检测当前 GitHub 账号下是否有同名仓库；有则绑定并拉取，无则自动创建后绑定。`dry-run` 模式下该流程不会执行。
+- `codex.autoGitInit`：自动初始化仓库机制。启用后若本地网站目录未绑定远端，会自动检测当前 `github` 账号下是否有同名仓库，有则绑定并拉取，无则自动创建后绑定。（若为 `true` 必须提前登录 `gh`）
 
 ## 版权声明
 
