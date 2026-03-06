@@ -54,11 +54,10 @@ cp config.template.json config.json
 
 ### 2. 准备承载网站的空仓库（若已登录 `gh` 并配置 `autoGitInit=True` 则可跳过本节）
 
-在 `github` 上创建一个空仓库，假设仓库名叫 `demo`，然后在项目根目录执行：
+在 `github` 上创建一个空仓库，假设仓库名为 <YOUR_REPO_NAME>，然后在项目根目录执行：
 ```bash
-# 示例站点名：`demo`
-mkdir -p webs/demo
-cd webs/demo
+mkdir -p webs/<YOUR_REPO_NAME>
+cd webs/<YOUR_REPO_NAME>
 git init
 git checkout -B main
 git remote add origin <你的空仓库地址>
@@ -83,8 +82,8 @@ python evolution.py
 
 ```bash
 python evolution.py --iterations 10 # 传入迭代次数
-python evolution.py --site demo # 传入仓库名
-python evolution.py --prompt "做一个极简但高级的作品集网站" # 传入prompt，更推荐用 user-prompt.md 传输
+python evolution.py --site <YOUR_REPO_NAME> # 传入仓库名
+python evolution.py --prompt "做一个极简但高级的作品集网站" # 传入prompt，更推荐用 user-prompt.md 传输，不传入 prompt 参数即自动读取 user-prompt.md
 python evolution.py --dry-run # 只做本地只读校验（不调用 Codex、不触发 autoGitInit、不切换分支、不做远端检查）
 ```
 
