@@ -12,6 +12,17 @@
   - `git commit -m "<Codex 提供的提交信息>"`
   - `git push -u origin main`
 
+## 代码结构
+
+- `evolution.py`：命令行入口（仅负责启动）。
+- `auto_evolution/cli.py`：参数解析。
+- `auto_evolution/workflow.py`：主流程编排。
+- `auto_evolution/config_loader.py`：配置读取与兼容性归一化。
+- `auto_evolution/logging_utils.py`：彩色日志与 Codex 输出分类（继承旧版 JS 的标签着色逻辑）。
+- `auto_evolution/prompt_tools.py`：提示词读取与迭代 Prompt 组装。
+- `auto_evolution/codex_runner.py`：Codex 执行、重试、会话恢复、提交信息提取。
+- `auto_evolution/git_tools.py`：站点仓库检查、分支与远端检查、自动提交推送。
+
 ## 快速开始
 
 1. 确保本机可用：`python3`、`git`、`codex`。
