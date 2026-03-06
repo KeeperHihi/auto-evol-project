@@ -41,7 +41,7 @@
 只需要将 `RightCode` 教程中的 `config.toml` 和 `auth.json` 两个文件按照你自己运营商的相关配置写好即可。
 
 
-### 1. 准备配置文件：
+### 1. 准备配置文件
 
 ```bash
 cp config.template.json config.json
@@ -52,7 +52,7 @@ cp config.template.json config.json
 - `autoGitInit` 是否愿意自动化创建仓库（默认为 `false`，必须 `gh` 登录才能为 `true`）
 - (可选) `llmAccess` 如果你希望进化过程中可以加入调用大模型的功能，请提供一个可调用的大模型配置，其中 `apiKey` 会以环境变量的形式加载，无需担心泄漏问题。
 
-### 2. 准备站点空仓库（若已登录 `gh` 并配置 `autoGitInit=True` 则可跳过本节）：
+### 2. 准备承载网站的空仓库（若已登录 `gh` 并配置 `autoGitInit=True` 则可跳过本节）
 
 在 `github` 上创建一个空仓库，假设仓库名叫 `demo`，然后在项目根目录执行：
 ```bash
@@ -73,7 +73,7 @@ cp prompts/user-prompt.template.md prompts/user-prompt.md
 
 记得填写你的创意 `idea` 到 `prompts/user-prompt.md`。
 
-### 4. 回到项目根目录，启动进化：
+### 4. 回到项目根目录，启动进化
 
 ```bash
 python evolution.py
