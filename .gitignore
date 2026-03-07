@@ -1,7 +1,7 @@
 projects/**
 !projects/.gitkeep
-config.json
 __pycache__/
 *.pyc
-prompts/
+/config.json
+/prompts/
 logs/
