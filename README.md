@@ -123,7 +123,7 @@ python evolution.py --dry-run # 测试本地流程是否能跑通
 - `multiAgent.enabled`：是否启用多 Agent 协作流程。
 - `multiAgent.maxContextChars`：多 Agent 协作记忆的截断长度（避免上下文无限增长）。
 - `multiAgent.agents`：角色列表，每项包含：
-  - `name`：角色唯一标识（会话复用 key）。
+  - `name`：角色唯一标识。
   - `role`：角色名称，用于提示词角色卡。
   - `goal`：角色目标，定义该角色在流水线中的职责。
   - `canEditCode`：该角色是否允许直接改代码。
