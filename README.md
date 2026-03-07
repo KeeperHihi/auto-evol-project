@@ -42,13 +42,18 @@
 
 只需要将 `RightCode` 教程中的 `config.toml` 和 `auth.json` 两个文件按照你自己运营商的相关配置写好即可。
 
-### 1. 准备配置文件
+### 1. 初始化本地配置与 prompts
 
 在项目根目录执行：
 
 ```bash
-cp config.template.json config.json
+cp -rn .template/. .
 ```
+
+说明：
+- 这条命令会把 `.template/` 下的 `config.json` 和 `prompts/*` 复制到项目根目录。
+- `-n` 表示不覆盖你已修改过的本地文件，可重复执行。
+- 运行时会优先读取根目录文件；若根目录缺失，才会回退读取 `.template/` 下对应文件。
 
 `config.json` 中要修改的字段：
 
@@ -73,17 +78,12 @@ git remote add origin <你的空仓库地址>
 
 ### 3. 设置好 prompts
 
-在项目根目录执行：
-
-```bash
-cp prompts/sys-prompt.template.md prompts/sys-prompt.md
-cp prompts/user-prompt.template.md prompts/user-prompt.md
-```
-
-可以改写 `prompts/sys-prompt.md` 更加适配你的需求，当前模板是通用系统规则。
-默认多 Agent 角色提示词位于 `prompts/roles/*.zh.md`。
+按需改写 `prompts/sys-prompt.md`（当前模板是通用系统规则）。
+多 Agent 角色提示词位于 `prompts/roles/*.zh.md`。
 
 记得填写你的创意 `idea` 到 `prompts/user-prompt.md`。
+如果你在迭代中途有新想法 / 新问题，可随时写入 `prompts/user-temp-prompt.md`，系统会在每轮开始时按最高优先级处理：第 1 角色先重构成编号条目，第 3 角色删除已完成条目并保留未完成条目。
+若你没有在根目录创建这些文件，程序会读取 `.template/` 中的默认内容；但要保留你自己的修改，建议始终维护根目录文件。
 
 ### 4. 启动进化
 
@@ -101,6 +101,10 @@ python evolution.py --project <YOUR_REPO_NAME> # 传入项目仓库名
 python evolution.py --prompt "请做一坨💩" # 直接传入创意，但更推荐用 user-prompt.md 传输，不传入 --prompt 参数即自动读取 user-prompt.md
 python evolution.py --dry-run # 测试本地流程是否能跑通
 ```
+
+中断说明：
+- 运行中按 `Ctrl+C` 会中断当前 Codex 执行。
+- 脚本会检测当前子仓库是否存在未提交改动；若存在会自动回滚这些未完成改动，然后正常退出。
 
 ## 配置字段（`config.json`）
 
