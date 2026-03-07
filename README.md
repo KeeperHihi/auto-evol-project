@@ -13,7 +13,7 @@
   - `Innovation Analyst`：读源码并提出创新改进方案
   - `Implementation Engineer`：实施改动
   - `Verification & Repair Engineer`：测试、发现问题并修复
-- 所有 Agent 都统一使用同一个 `codex` CLI 和 `codex.model`，不依赖其他模型供应商。
+- 所有 Agent 都统一使用同一个 `codex CLI` 和 `codex.model`。
 - 每轮迭代结束后，脚本会在该子仓库内自动提交并推送（可通过配置关闭）。
 
 ## 代码结构
@@ -82,7 +82,11 @@ git remote add origin <你的空仓库地址>
 多 Agent 角色提示词位于 `prompts/roles/*.zh.md`。
 
 记得填写你的创意 `idea` 到 `prompts/user-prompt.md`。
-如果你在迭代中途有新想法 / 新问题，可随时写入 `prompts/user-temp-prompt.md`，系统会在每轮开始时按最高优先级处理：第 1 角色先重构成编号条目，第 3 角色删除已完成条目并保留未完成条目。
+
+（重要！）如果你在迭代中途有新想法 / 新问题，可随时写入 `prompts/user-temp-prompt.md`，系统会在每轮开始时按最高优先级处理：
+- 第 1 角色先重构成编号条目
+- 第 3 角色删除已完成条目并保留未完成条目。
+
 若你没有在根目录创建这些文件，程序会读取 `.template/` 中的默认内容，建议始终维护根目录文件。
 
 ### 4. 启动进化
