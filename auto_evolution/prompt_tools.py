@@ -327,6 +327,7 @@ def build_multi_agent_prompt(
             [
                 "0. 在原有验证工作基础上，必须逐条评估临时需求条目是否已完成。",
                 "0. 你必须只删除已完成条目，未完成条目原封不动保留（文本不改写、顺序不调整）。",
+                "0. 你必须直接更新来源文件完成上述删除动作，不需要输出待删除条目编号。",
             ]
         )
     elif temp_prompt_text:
@@ -366,12 +367,6 @@ def build_multi_agent_prompt(
     else:
         output_protocol.append(f"{next_index}. 必须输出：`HANDOFF_FILE: <文件路径>`。")
     next_index += 1
-    if temp_prompt_text and agent_index == total_agents:
-        output_protocol.append(
-            f"{next_index}. 必须输出：`TEMP_PROMPT_DONE_IDS: <逗号分隔编号；若无则写 NONE>`。"
-        )
-        next_index += 1
-
     sections.extend(output_protocol)
     if require_commit_message:
         sections.append(

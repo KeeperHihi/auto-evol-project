@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,13 +34,6 @@ from auto_evolution.prompt_tools import (
     resolve_user_prompt,
 )
 from auto_evolution.text_tools import extract_tail
-
-TEMP_PROMPT_DONE_IDS_PATTERN = re.compile(
-    r"^\s*TEMP_PROMPT_DONE_IDS\s*[:：]\s*(.+)$",
-    re.IGNORECASE | re.MULTILINE,
-)
-TEMP_PROMPT_ITEM_PATTERN = re.compile(r"(?m)^[ \t]*(\d+)[\.\)\）、]\s+")
-
 
 @dataclass
 class AgentTurnResult:
@@ -106,73 +98,6 @@ def summarize_multi_agent_results(
             lines.append(f"HANDOFF_FILE: {handoff_file}")
 
     return extract_tail("\n".join(lines), max_context_chars)
-
-
-def extract_temp_prompt_done_ids(output_tail: str) -> list[int]:
-    match = TEMP_PROMPT_DONE_IDS_PATTERN.search(str(output_tail or ""))
-    if not match:
-        return []
-
-    value = str(match.group(1) or "").strip()
-    if not value:
-        return []
-    if value.upper() in {"NONE", "N/A", "NA"} or value in {"无", "无完成项", "没有"}:
-        return []
-
-    ids: list[int] = []
-    seen: set[int] = set()
-    for token in re.split(r"[,\s，、]+", value):
-        if not token:
-            continue
-        if not token.isdigit():
-            continue
-        number = int(token)
-        if number <= 0 or number in seen:
-            continue
-        seen.add(number)
-        ids.append(number)
-    return ids
-
-
-def prune_user_temp_prompt_completed_items(path: Path, done_ids: list[int]) -> tuple[int, int]:
-    if not done_ids:
-        return 0, 0
-    if not path.exists():
-        return 0, 0
-
-    raw_text = path.read_text(encoding="utf-8")
-    matches = list(TEMP_PROMPT_ITEM_PATTERN.finditer(raw_text))
-    if not matches:
-        return 0, 0
-
-    done_set = {item for item in done_ids if item > 0}
-    if not done_set:
-        return 0, len(matches)
-
-    prefix = raw_text[: matches[0].start()]
-    kept_blocks: list[str] = []
-    removed_count = 0
-    remaining_count = 0
-
-    for idx, match in enumerate(matches):
-        start = match.start()
-        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(raw_text)
-        block = raw_text[start:end]
-        item_id = int(match.group(1))
-        if item_id in done_set:
-            removed_count += 1
-            continue
-        kept_blocks.append(block)
-        remaining_count += 1
-
-    if removed_count <= 0:
-        return 0, len(matches)
-
-    new_text = ""
-    if kept_blocks:
-        new_text = prefix + "".join(kept_blocks)
-    path.write_text(new_text, encoding="utf-8")
-    return removed_count, remaining_count
 
 
 def run_single_agent_round(
@@ -326,23 +251,17 @@ def run_multi_agent_round(
                 log(f"[AUTO] Agent {agent.name} 已产出交接文档：{', '.join(handoff_files)}")
 
             if current_user_temp_prompt.strip() and index == total_agents:
-                done_ids = extract_temp_prompt_done_ids(output_tail)
-                if not done_ids:
-                    log("[WARN] 第三角色未给出已完成条目编号，临时需求文件保持不变")
+                latest_temp_prompt = (
+                    user_temp_prompt_path.read_text(encoding="utf-8")
+                    if user_temp_prompt_path.exists()
+                    else ""
+                )
+                if not latest_temp_prompt.strip():
+                    log("[AUTO] 第三角色已清空 user-temp-prompt.md")
+                elif latest_temp_prompt == current_user_temp_prompt:
+                    log("[AUTO] 第三角色复核后保留全部临时需求（本轮无可删除条目）")
                 else:
-                    removed_count, remaining_count = prune_user_temp_prompt_completed_items(
-                        user_temp_prompt_path,
-                        done_ids,
-                    )
-                    if removed_count > 0:
-                        log(
-                            "[AUTO] 第三角色已移除临时需求完成条目："
-                            f"{done_ids}；剩余 {remaining_count} 条"
-                        )
-                    else:
-                        log(
-                            "[WARN] 第三角色给出的完成编号未匹配到有效条目，临时需求文件保持不变"
-                        )
+                    log("[AUTO] 第三角色已更新 user-temp-prompt.md，并保留未完成条目")
             log(f"[AUTO] Agent {agent.name} 完成")
 
     return (
