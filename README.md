@@ -2,7 +2,8 @@
 
 `Codex` 驱动的自进化项目框架
 
-## 作品展示
+## 项目作品展示
+[3D-Gobang](https://github.com/KeeperHihi/3D-Gobang)
 
 ## TODO
 - [ ] 适配 `claude code` 等更多平台
